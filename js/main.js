@@ -376,7 +376,29 @@
     var titleEl = document.getElementById('certModalTitle');
     var closeBtn = document.getElementById('certModalClose');
     var backdrop = document.getElementById('certModalBackdrop');
+    var panel = document.querySelector('.cert-modal-panel');
     var lastFocused = null;
+
+    // The panel/backdrop likely have "pointer-events: auto" (possibly
+    // even "!important") in CSS so the close button works while open.
+    // That can override plain inline styles. So on close we force the
+    // modal fully out of the way with setProperty(..., 'important'),
+    // which beats CSS !important too — nothing is left behind to block
+    // clicks on the page underneath (e.g. the contact form).
+    function forceHide(el) {
+      if (!el) return;
+      el.style.setProperty('display', 'none', 'important');
+      el.style.setProperty('visibility', 'hidden', 'important');
+      el.style.setProperty('pointer-events', 'none', 'important');
+    }
+    function releaseForceHide(el) {
+      if (!el) return;
+      el.style.removeProperty('display');
+      el.style.removeProperty('visibility');
+      el.style.removeProperty('pointer-events');
+    }
+    // Make sure it starts hidden even before any open/close cycle.
+    forceHide(modal);
 
     function openModal(key) {
       var data = certData[key];
@@ -387,6 +409,7 @@
       titleEl.textContent = data.title;
       modal.classList.add('open');
       modal.setAttribute('aria-hidden', 'false');
+      releaseForceHide(modal);
       document.body.style.overflow = 'hidden';
       closeBtn.focus();
     }
@@ -395,6 +418,12 @@
       modal.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
       if (lastFocused) lastFocused.focus();
+
+      // Belt-and-suspenders: guarantee the (now closed) modal can never
+      // sit on top of / intercept clicks on the page behind it, no
+      // matter what the CSS for .cert-modal / .cert-modal-panel /
+      // .cert-modal-backdrop does with opacity/visibility/!important.
+      forceHide(modal);
     }
 
     document.querySelectorAll('[data-cert]').forEach(function (btn) {
